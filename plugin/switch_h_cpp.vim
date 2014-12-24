@@ -4,12 +4,12 @@
 " || Jia Hongyuan, 2014-03-06. Email: jhy13401192277@gmail.com
 " ||
 " || Descriptions:
-" || This script is designed to switch the current vim buffer between c++
+" || This script is designed to switch current vim buffer between c++
 " || header and cpp files. You can easily add new file extensions by changing "exts" variable.
 " || The current support extions include .cpp, .C, .cc.
 " || 
 " || Installation:
-" || 1. Copy this .py file into .vim/plugin folder. You can change the logger
+" || 1. Copy this .vim file into .vim/plugin folder. You can change the logger
 " || level, if you want to suppress some redundant output information.
 " || 2. Set shortcut in .vimrc. e.g.  nmap ,s :call Switch_h_cpp()<CR>
 " ------------------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ import os, logging, types
 import vim
 
 
-__version__ = 1.0
+__version__ = 1.2
 __author__ = 'Jia Hongyuan'
 
 
@@ -72,7 +72,19 @@ def recursive_search( parent, fn ):
 				    return result
 
 
-def tryToLoadFile( fn ):
+def loadFileIntoVim( fn ):
+	# load it
+	try:
+		cmd = 'e %s'% fn
+		logPrint( 'cmd: '+cmd, INFO )
+		vim.command( cmd )
+		return True
+	except Exception, e:
+		print e
+		return False
+
+
+def tryToSearchAndLoadFile( fn ):
 	cwd = vim.eval('g:LAUNCH_ROOT')
 	logPrint( 'current woring root:'+cwd, DEBUG )
 
@@ -82,15 +94,16 @@ def tryToLoadFile( fn ):
 
 	# test file
 	if type(targetFn)!=types.NoneType:
-		# load it
-		try:
-			cmd = 'e %s'%targetFn
-			logPrint( 'cmd: '+cmd, INFO )
-			vim.command( cmd )
-			return True
-		except Exception, e:
-			print e
-			return False
+		return loadFileIntoVim( targetFn )
+	else:
+		return False
+
+
+def tryToLoadFile( fn, path ):
+	fullName = '%s/%s' % ( path, fn )
+	logPrint( 'Try to load:'+fullName, DEBUG )
+	if os.path.exists( fullName ):
+		return loadFileIntoVim( fullName )
 	else:
 		return False
 
@@ -103,19 +116,42 @@ def run():
 		return
 	
 	old_path, old_fn = os.path.split( curbuf_name )
+	logPrint( 'Current buffer path: '+old_path )
+
 	tmp_fn, tmp_ext  = old_fn.split( '.' )
 	if tmp_ext=='h' :
+		# 1. search in current buffer file path
 		for e in exts:
 			new_fn = '%s.%s'%( tmp_fn, e )
-			st = tryToLoadFile( new_fn )
+			st = tryToLoadFile( new_fn, old_path )
 			if st:
 				return True
+		# 2. search in LAUNCH_ROOT
+		for e in exts:
+			new_fn = '%s.%s'%( tmp_fn, e )
+			st = tryToSearchAndLoadFile( new_fn )
+			if st:
+				return True
+
+		return False
+
 	elif tmp_ext in exts:
 		new_fn = '%s.h'%( tmp_fn )
-		tryToLoadFile( new_fn )
+		
+		# 1. search in current buffer file path
+		st = tryToLoadFile( new_fn, old_path )
+		if st:
+			return True
+		
+		# 2. search in LAUNCH_ROOT
+		tryToSearchAndLoadFile( new_fn )
+		if st:
+			return True
+		
+		return False
 	else:
 		logPrint( ' Unknown extension:'+curbuf_name )
-		return
+		return False
 
 
 run()
