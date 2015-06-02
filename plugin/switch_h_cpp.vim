@@ -6,7 +6,7 @@
 " || Descriptions:
 " || This script is designed to switch current vim buffer between c++
 " || header and cpp files. You can easily add new file extensions by changing "exts" variable.
-" || The current support extions include .cpp, .C, .cc.
+" || This version supports cpp, .C, .cc.
 " || 
 " || Installation:
 " || 1. Copy this .vim file into .vim/plugin folder. You can change the logger
