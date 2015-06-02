@@ -86,7 +86,7 @@ def loadFileIntoVim( fn ):
 
 def tryToSearchAndLoadFile( fn ):
 	cwd = vim.eval('g:LAUNCH_ROOT')
-	logPrint( 'current woring root:'+cwd, DEBUG )
+	logPrint( 'current working root:'+cwd, DEBUG )
 
 	logPrint( 'search:'+cwd+', '+fn, DEBUG )
 	targetFn = recursive_search( cwd, fn )
