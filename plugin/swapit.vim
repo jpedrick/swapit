@@ -1,3 +1,5 @@
+" Initially forked from jiahongyuan/sourceCodeSwitcherForC_CXX
+"
 " function definition.
 if !exists( "g:LAUNCH_ROOT" )
     let g:swapit_root = getcwd()
