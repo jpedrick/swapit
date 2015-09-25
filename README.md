@@ -1,4 +1,4 @@
-sourceCodeSwitcherForC_CXX
+swapit
 ==========================
 
-Switch current vim buffer between c++ header and cpp files
+Switch current vim buffer between header and source files
