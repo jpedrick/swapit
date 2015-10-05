@@ -4,7 +4,7 @@ if !exists( "g:LAUNCH_ROOT" )
     let g:swapit_header_extensions = 'hpp:h'
     let g:swapit_source_extensions = 'cpp:C:c:cc:cxx'
     let g:swapit_timeout = 5
-    let g:swapit_log_level = "error"
+    let g:swapit_log_level = 'error'
 endif
 
 function! Swapit()
@@ -87,8 +87,7 @@ def tryToLoadFile( prefix, path, postfixes ):
         logPrint( 'tryToLoadFile( prefix: %s, path: %s, postfixes: %s ) -> filename: %s' % ( prefix, path, postfixes, filename ), LogLevel.debug )
         if os.path.exists( filename ):
             return loadFileIntoVim( filename )
-        else:
-            return False
+    return False
 
 def run():
     curbuf_name = vim.current.buffer.name
