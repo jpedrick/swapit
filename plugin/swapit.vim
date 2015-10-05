@@ -1,102 +1,114 @@
-" Initially forked from jiahongyuan/sourceCodeSwitcherForC_CXX
-"
 " function definition.
 if !exists( "g:LAUNCH_ROOT" )
     let g:swapit_root = getcwd()
     let g:swapit_header_extensions = 'hpp:h'
     let g:swapit_source_extensions = 'cpp:C:c:cc:cxx'
+    let g:swapit_timeout = 5
+    let g:swapit_log_level = "error"
 endif
 
 function! Swapit()
 python << EOF
 import os, logging, types, re
 import vim
+import signal
 
 __version__ = 1.0
 __author__ = 'Joshua Pedrick/Jia Hongyuan'
 
 headerExts = vim.eval('g:swapit_header_extensions').split(':')
 sourceExts = vim.eval('g:swapit_source_extensions').split(':')
+timeout    = int(vim.eval('g:swapit_timeout'))
+log_level  = vim.eval('g:swapit_log_level')
 
-# logger
-DEBUG = 4
-ERROR = 3
-WARN  = 2
-INFO  = 1
-OFF   = 0
-GLOBAL_LEVEL = OFF
+class LogLevel():
+    off = 0
+    error = 1 
+    warn = 2
+    info = 3 
+    debug = 4
+
+numeric_log_level = getattr(LogLevel,log_level)
 
 def logPrint( mes, on=1 ):
     if type(mes)==types.NoneType:
         mes = 'NONE'
-    if on<=GLOBAL_LEVEL:
+    if on <= numeric_log_level:
         print '--', mes
 
-def recursive_search( parent, pattern ):
-    children = os.listdir( parent )
-    for chi in children:
-        if re.match( pattern, chi ):
-            return os.path.abspath( '%s/%s'%(parent, chi) )
-        else:
-            nextParent = os.path.abspath( '%s/%s'%(parent, chi) )
-            st = os.path.isdir(nextParent)
-            if st:
-                result = recursive_search( nextParent, pattern )
-                if type(result)!=types.NoneType:
-                    return result
+def recursiveSearch( parent, pattern ):
+    logPrint( 'recursiveSearch( parent: %s, pattern: %s ):' % ( parent, pattern ), LogLevel.debug )
+    for directory, dirnames, filenames in os.walk(parent):
+        for filename in filenames:
+            logPrint( 'checking if -> filename: %s matches pattern: %s' % ( filename,  pattern ), LogLevel.debug )
+            if re.match( pattern, filename ):
+                return os.path.abspath( '%s/%s'%(parent, filename) )
+        for directory in dirnames:
+            return recursiveSearch( directory, pattern )
+    return None
 
 def loadFileIntoVim( fn ):
     # load it
     try:
         cmd = 'e %s'% fn
-        logPrint( 'cmd: '+cmd, INFO )
+        logPrint( 'cmd: '+cmd, LogLevel.info )
         vim.command( cmd )
         return True
     except Exception, e:
         print e
         return False
 
+def swapitTimeoutHandler(signum, frame):
+    raise Exception("Swapit timed out!")
+
 def tryToSearchAndLoadFile( pattern ):
-    cwd = vim.eval('g:swapit_root')
-    logPrint( 'current working root:'+cwd, DEBUG )
+    signal.signal( signal.SIGALRM, swapitTimeoutHandler )
+    signal.alarm(timeout)
+    try:
+        cwd = vim.eval('g:swapit_root')
+        logPrint( 'current working root:'+cwd, LogLevel.debug )
 
-    logPrint( 'search:'+cwd+', '+pattern, DEBUG )
-    targetFn = recursive_search( cwd, pattern )
-    print 'first search:', targetFn 
+        logPrint( 'search:'+cwd+', '+pattern, LogLevel.debug )
+        targetFn = recursiveSearch( cwd, pattern )
+        print 'first search:', targetFn 
 
-    # test file
-    if type(targetFn)!=types.NoneType:
-        return loadFileIntoVim( targetFn )
-    else:
-        return False
+        # test file
+        if type(targetFn)!=types.NoneType:
+            return loadFileIntoVim( targetFn )
+        else:
+            return False
+    except Exception, msg:
+        logPrint( 'tryToSearchAndLoadFile: exception thrown: [%s]' % msg, LogLevel.error )
+        return False;
 
-def tryToLoadFile( fn, path ):
-    fullName = '%s/%s' % ( path, fn )
-    logPrint( 'Try to load:'+fullName, DEBUG )
-    if os.path.exists( fullName ):
-        return loadFileIntoVim( fullName )
-    else:
-        return False
+def tryToLoadFile( prefix, path, postfixes ):
+    for postfix in postfixes:
+        filename = '/'.join( [ path, prefix + '.' + postfix ] )
+        logPrint( 'tryToLoadFile( prefix: %s, path: %s, postfixes: %s ) -> filename: %s' % ( prefix, path, postfixes, filename ), LogLevel.debug )
+        if os.path.exists( filename ):
+            return loadFileIntoVim( filename )
+        else:
+            return False
 
 def run():
     curbuf_name = vim.current.buffer.name
-    logPrint( 'current buf file:'+curbuf_name, DEBUG )
+    logPrint( 'current buf file:'+curbuf_name, LogLevel.debug )
     if curbuf_name=='':
-        logPrint( 'Invalid action: attempted to switch unnamed file', ERROR )
+        logPrint( 'Invalid action: attempted to switch unnamed file', LogLevel.error )
         return
     
     old_path, old_fn = os.path.split( curbuf_name )
-    logPrint( 'Current buffer path: '+old_path + ' -> ' + old_fn )
+    logPrint( 'Current buffer path: '+old_path + ' -> ' + old_fn, LogLevel.debug )
 
     tmp_fn = old_fn.split( '.' )
     tmp_ext = tmp_fn.pop()
     if tmp_ext in headerExts :
-        pattern = '.'.join(tmp_fn) + '\.(' + '|'.join(sourceExts) + ')$'
         # 1. search in current buffer file path
-        st = tryToLoadFile( pattern, old_path )
+        st = tryToLoadFile( tmp_fn[0], old_path, sourceExts )
         if st:
             return True
         # 2. search in LAUNCH_ROOT
+        pattern = '.'.join(tmp_fn) + '\.(' + '|'.join(sourceExts) + ')$'
         st = tryToSearchAndLoadFile(pattern)
         if st:
             return True
@@ -104,12 +116,12 @@ def run():
         return False
 
     elif tmp_ext in sourceExts:
-        pattern = '.'.join(tmp_fn) + '\.(' + '|'.join(headerExts) + ')$'
         # 1. search in current buffer file path
-        st = tryToLoadFile( pattern, old_path )
+        st = tryToLoadFile( tmp_fn[0], old_path, headerExts )
         if st:
             return True
         # 2. search in LAUNCH_ROOT
+        pattern = '.'.join(tmp_fn) + '\.(' + '|'.join(headerExts) + ')$'
         st = tryToSearchAndLoadFile( pattern )
         if st:
             return True
