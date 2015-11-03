@@ -49,7 +49,7 @@ def recursiveSearch( parent, pattern ):
 
 def loadFileIntoVim( fn ):
     for b in vim.buffers:
-        if b.name == fn:
+        if os.path.samefile(b.name, fn):
             vim.current.buffer = b
             return True
 
