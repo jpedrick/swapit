@@ -48,6 +48,11 @@ def recursiveSearch( parent, pattern ):
     return None
 
 def loadFileIntoVim( fn ):
+    for b in vim.buffers:
+        if b.name == fn:
+            vim.current.buffer = b
+            return True
+
     # load it
     try:
         cmd = 'e %s'% fn
