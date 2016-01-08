@@ -20,6 +20,7 @@ headerExts = vim.eval('g:swapit_header_extensions').split(':')
 sourceExts = vim.eval('g:swapit_source_extensions').split(':')
 timeout    = int(vim.eval('g:swapit_timeout'))
 log_level  = vim.eval('g:swapit_log_level')
+inSearch = False
 
 class LogLevel():
     off = 0
@@ -49,7 +50,7 @@ def recursiveSearch( parent, pattern ):
 
 def loadFileIntoVim( fn ):
     for b in vim.buffers:
-        if os.path.samefile(b.name, fn):
+        if b.name == fn:
             vim.current.buffer = b
             return True
 
@@ -64,9 +65,11 @@ def loadFileIntoVim( fn ):
         return False
 
 def swapitTimeoutHandler(signum, frame):
-    raise Exception("Swapit timed out!")
+    if inSearch:
+        raise Exception("Swapit timed out!")
 
 def tryToSearchAndLoadFile( pattern ):
+    inSearch = True
     signal.signal( signal.SIGALRM, swapitTimeoutHandler )
     signal.alarm(timeout)
     try:
@@ -75,10 +78,11 @@ def tryToSearchAndLoadFile( pattern ):
 
         logPrint( 'search:'+cwd+', '+pattern, LogLevel.debug )
         targetFn = recursiveSearch( cwd, pattern )
-        print 'first search:', targetFn 
+        inSearch = False
 
         # test file
         if type(targetFn)!=types.NoneType:
+            print 'loading first search:', targetFn 
             return loadFileIntoVim( targetFn )
         else:
             return False
