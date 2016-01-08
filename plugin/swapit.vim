@@ -7,6 +7,10 @@ if !exists( "g:LAUNCH_ROOT" )
     let g:swapit_log_level = 'error'
 endif
 
+function! FileModified()
+    return &modified
+endfunction
+
 function! Swapit()
 python << EOF
 import os, logging, types, re
@@ -49,11 +53,23 @@ def recursiveSearch( parent, pattern ):
     return None
 
 def loadFileIntoVim( fn ):
+    logPrint( 'check if file has buffer open already for: [%s]' % fn, LogLevel.info)
+    modified = vim.eval( '&modified' )
+    hidden = vim.options['hidden']
+    logPrint( 'hidden=[%s]' % hidden, LogLevel.info )
+    logPrint( 'modified=[%s]' % modified, LogLevel.info )
+
+    if modified == "1" and not hidden:
+        print "current buffer modified, save changes or 'set hidden'"
+        return False
+
     for b in vim.buffers:
         if os.path.samefile(b.name,fn):
+            logPrint( 'buffer open already: [%s]' % b.name, LogLevel.debug )
             vim.current.buffer = b
             return True
 
+    logPrint( 'no buffer open already for: [%s]' % fn, LogLevel.debug )
     # load it
     try:
         cmd = 'e %s'% fn
