@@ -22,15 +22,19 @@ let g:swapit_header_extensions = 'hpp:h'
 let g:swapit_source_extensions = 'cpp:cxx:C:c:cc'
 ```
 
+setting hidden mode is recommended:
+```vim
+set hidden
+```
+
 Define timeout. If search operation takes too long, error out and return vim control back to user.
 ```vim
 let g:swapit_timeout = 5
 ```
 
-Define log level *[off, error, warn, info, debug]*. Each level includes more detailed info of plugin progress:
+Define log level *[off, error, warn, info, debug]*. Each level includes more detailed info of plugin progress:(*error* for normal every day use.)
 ```vim
 let g:swapit_log_level = 'error'
 ```
 
-I recommend *error* for normal every day use.
 
