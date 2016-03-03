@@ -43,41 +43,54 @@ def logPrint( mes, on=1 ):
 
 def recursiveSearch( parent, pattern ):
     logPrint( 'recursiveSearch( parent: %s, pattern: %s ):' % ( parent, pattern ), LogLevel.debug )
-    for directory, dirnames, filenames in os.walk(parent):
-        for filename in filenames:
-            logPrint( 'checking if -> filename: %s matches pattern: %s' % ( filename,  pattern ), LogLevel.debug )
-            if re.match( pattern, filename ):
-                return os.path.abspath( '%s/%s'%(parent, filename) )
-        for directory in dirnames:
-            return recursiveSearch( directory, pattern )
+
+    if os.path.isdir(parent):
+        try:
+            for directory, dirnames, filenames in os.walk(parent):
+                for filename in filenames:
+                    logPrint( 'checking if -> filename: %s matches pattern: %s' % ( filename,  pattern ), LogLevel.debug )
+                    if re.match( pattern, filename ):
+                        return os.path.abspath( '%s/%s'%(parent, filename) )
+                for directory in dirnames:
+                    return recursiveSearch( directory, pattern )
+        except Exception, e:
+            return None
+        except OSError, e:
+            return None
+
     return None
 
 def loadFileIntoVim( fn ):
-    logPrint( 'check if file has buffer open already for: [%s]' % fn, LogLevel.info)
-    modified = vim.eval( '&modified' )
-    hidden = vim.options['hidden']
-    logPrint( 'hidden=[%s]' % hidden, LogLevel.info )
-    logPrint( 'modified=[%s]' % modified, LogLevel.info )
-
-    if modified == "1" and not hidden:
-        print "current buffer modified, save changes or 'set hidden'"
-        return False
-
-    for b in vim.buffers:
-        if os.path.samefile(b.name,fn):
-            logPrint( 'buffer open already: [%s]' % b.name, LogLevel.debug )
-            vim.current.buffer = b
-            return True
-
-    logPrint( 'no buffer open already for: [%s]' % fn, LogLevel.debug )
-    # load it
     try:
-        cmd = 'e %s'% fn
-        logPrint( 'cmd: '+cmd, LogLevel.info )
-        vim.command( cmd )
-        return True
-    except Exception, e:
-        print e
+        logPrint( 'check if file has buffer open already for: [%s]' % fn, LogLevel.info)
+        modified = vim.eval( '&modified' )
+        hidden = vim.options['hidden']
+        logPrint( 'hidden=[%s]' % hidden, LogLevel.info )
+        logPrint( 'modified=[%s]' % modified, LogLevel.info )
+
+        if modified == "1" and not hidden:
+            print "current buffer modified, save changes or 'set hidden'"
+            return False
+
+        for b in vim.buffers:
+            if os.path.isfile(b.name):
+                if os.path.samefile(b.name,fn):
+                    logPrint( 'buffer open already: [%s]' % b.name, LogLevel.debug )
+                    vim.current.buffer = b
+                    return True
+
+        logPrint( 'no buffer open already for: [%s]' % fn, LogLevel.debug )
+        # load it
+        try:
+            cmd = 'e %s'% fn
+            logPrint( 'cmd: '+cmd, LogLevel.info )
+            vim.command( cmd )
+            return True
+        except Exception, e:
+            print e
+            return False
+    except OSError, e:
+        print 'failed to load file into vim: ', e
         return False
 
 def swapitTimeoutHandler(signum, frame):
@@ -131,8 +144,10 @@ def run():
         st = tryToLoadFile( tmp_fn[0], old_path, sourceExts )
         if st:
             return True
+
         # 2. search in LAUNCH_ROOT
         pattern = '.'.join(tmp_fn) + '\.(' + '|'.join(sourceExts) + ')$'
+
         st = tryToSearchAndLoadFile(pattern)
         if st:
             return True
